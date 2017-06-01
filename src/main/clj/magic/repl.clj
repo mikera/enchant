@@ -17,7 +17,9 @@
 (defonce ^:dynamic context nil)
 
 
-(defn magic-str ^String [o]
+(defn magic-str 
+  "Converts a Magic value to a string for readable printing"
+  ^String [o]
   (magic.RT/print o))
 
 (defn magic-eval
