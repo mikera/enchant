@@ -19,7 +19,6 @@
                  [net.mikera/magic "0.0.1-SNAPSHOT"] ]
   :profiles  {:dev  {:dependencies  [[org.clojure/test.check "0.9.0"]]
                      :repl-options {:nrepl-middleware [magic.repl/magic-handler]
-                                    :host "0.0.0.0"
                                     :port 4001}}
               :test {:dependencies  []}
               }
