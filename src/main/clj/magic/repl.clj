@@ -1,4 +1,4 @@
-(ns magic.main
+(ns magic.repl
   (:use [clojure.repl])
   (:require [clojure.tools.nrepl :as repl]
             [clojure.tools.nrepl.server :as server]
@@ -9,24 +9,47 @@
 
 (defn magic-eval
   [{:keys [op code session transport] :as msg}]
-  (println "Code = " code)
+  ;;(println "Code = " code)
+  ;;(println "Session = " code)
   (let [val (str (System/currentTimeMillis))
         resp (nrepl-misc/response-for msg 
                                       :status :done
                                       :printed-value 1
                                       :value val
-                                      :out val)]
-    (println "Resp = " resp)
+                                      ;; :out val
+                                      )]
+    ;;(println "Resp = " resp)
     (transport/send transport resp)))
 
+;; var to use in nREPL sessions
+(defonce ^:dynamic magic? false)
 
 (defn magic-handler
   "nREPL middleware function for Magic operations"
   [h]
-  (fn [{:keys [op session transport] :as msg}]
+  (fn [{:keys [op session code transport] :as msg}]
     (cond
       (= "eval" op)
-        (#'magic-eval msg)
+        (let [sess @session
+              magic? (sess #'magic?)]
+          (cond
+            (and (not magic?) (= code "magic"))
+              (do 
+                (swap! session assoc #'magic? true)
+                (transport/send transport (nrepl-misc/response-for msg 
+                                                                   :status :done
+                                                                   :printed-value 1
+                                                                   :out "Welcome to Magic!\n")))
+            (and magic? (= code "quit"))
+              (do 
+                (swap! session assoc #'magic? false)
+                (transport/send transport (nrepl-misc/response-for msg 
+                                                                   :status :done
+                                                                   :printed-value 1
+                                                                   :out "Exiting Magic...\n")))
+            magic? (#'magic-eval msg)
+            :else (h msg))
+          )
       :else
         (h msg))))
 
@@ -54,6 +77,9 @@
    :expects #{"eval"}
    :handles {}
    })
+
+(defn start-server [{:keys [port] :as repl-options}]
+  (server/start-server :handler (server/default-handler #'magic-handler) :port port))
 
 (comment 
   (server/default-handler #'magic-handler)
