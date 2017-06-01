@@ -1,5 +1,8 @@
 (ns magic.repl
+  (:refer-clojure :exclude [Compiler])
   (:use [clojure.repl])
+  (:import [magic RT]
+           [magic.compiler EvalResult])
   (:require [clojure.tools.nrepl :as repl]
             [clojure.tools.nrepl.server :as server]
             [clojure.tools.nrepl.middleware :as middleware]
@@ -7,22 +10,41 @@
             [clojure.tools.nrepl.transport :as transport]
             [clojure.tools.nrepl.misc :as nrepl-misc]))
 
+(set! *warn-on-reflection* true)
+
+;; var to use in nREPL sessions
+(defonce ^:dynamic magic? false)
+(defonce ^:dynamic context nil)
+
+
 (defn magic-eval
   [{:keys [op code session transport] :as msg}]
   ;;(println "Code = " code)
   ;;(println "Session = " code)
-  (let [val (str (System/currentTimeMillis))
-        resp (nrepl-misc/response-for msg 
+  (try
+    (let [^magic.lang.Context context (or (@session #'context) (throw (Error. "No context??")))    
+        
+         result (magic.compiler.Compiler/compile context (str code))
+         val (.getValue result)
+         new-context (.getContext result)
+         _ (swap! session assoc #'context new-context)
+        
+         resp (nrepl-misc/response-for msg 
                                       :status :done
                                       :printed-value 1
                                       :value val
-                                      ;; :out val
-                                      )]
-    ;;(println "Resp = " resp)
-    (transport/send transport resp)))
+                                       ;; :out val
+                                       )]
+     ;;(println "Resp = " resp)
+     (transport/send transport resp))
+    (catch Throwable t
+      (let [resp (nrepl-misc/response-for msg 
+                                      :status :error
+                                      :value t
+                                       ;; :out val
+                                       )]
+        (transport/send transport resp)))))
 
-;; var to use in nREPL sessions
-(defonce ^:dynamic magic? false)
 
 (defn magic-handler
   "nREPL middleware function for Magic operations"
@@ -36,6 +58,7 @@
             (and (not magic?) (= code "magic"))
               (do 
                 (swap! session assoc #'magic? true)
+                (swap! session assoc #'context magic.RT/INITIAL_CONTEXT)
                 (transport/send transport (nrepl-misc/response-for msg 
                                                                    :status :done
                                                                    :printed-value 1
