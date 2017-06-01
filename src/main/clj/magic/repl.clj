@@ -17,9 +17,13 @@
 (defonce ^:dynamic context nil)
 
 
+(defn magic-str ^String [o]
+  (magic.RT/print o))
+
 (defn magic-eval
+  "nREPL handler function for evaluationg Magic code"
   [{:keys [op code session transport] :as msg}]
-  ;;(println "Code = " code)
+  ;; (println "Code = " code)
   ;;(println "Session = " code)
   (try
     (let [^magic.lang.Context context (or (@session #'context) (throw (Error. "No context??")))    
@@ -30,24 +34,25 @@
          _ (swap! session assoc #'context new-context)
         
          resp (nrepl-misc/response-for msg 
-                                      :status :done
+                                      :status #{:done :success} 
                                       :printed-value 1
-                                      :value val
-                                       ;; :out val
+                                      ;;:value val
+                                       :out (magic-str val)
                                        )]
-     ;;(println "Resp = " resp)
-     (transport/send transport resp))
+       ;;(println "Resp = " resp)
+       (transport/send transport resp))
     (catch Throwable t
       (let [resp (nrepl-misc/response-for msg 
                                       :status :error
-                                      :value t
-                                       ;; :out val
+                                      :printed-value 1
+                                      ;;:value t
+                                       :err (magic-str t)
                                        )]
         (transport/send transport resp)))))
 
 
 (defn magic-handler
-  "nREPL middleware function for Magic operations"
+  "nREPL middleware function for Magic operations. Delegates to default handlers as required."
   [h]
   (fn [{:keys [op session code transport] :as msg}]
     (cond
@@ -62,14 +67,18 @@
                 (transport/send transport (nrepl-misc/response-for msg 
                                                                    :status :done
                                                                    :printed-value 1
-                                                                   :out "Welcome to Magic!\n")))
+                                                                   ;;:value "Welcome to Magic!\n"
+                                                                   :out "Welcome to Magic!\n"
+                                                                   )))
             (and magic? (= code "quit"))
               (do 
                 (swap! session assoc #'magic? false)
                 (transport/send transport (nrepl-misc/response-for msg 
                                                                    :status :done
                                                                    :printed-value 1
-                                                                   :out "Exiting Magic...\n")))
+                                                                   ;; :value "Welcome to Magic!\n"
+                                                                   :out "Exiting Magic...\n"
+                                                                   )))
             magic? (#'magic-eval msg)
             :else (h msg))
           )
