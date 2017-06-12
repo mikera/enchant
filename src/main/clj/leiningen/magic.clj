@@ -1,5 +1,5 @@
 (ns leiningen.magic
-  (:require [magic.repl :as mrepl]
+  (:require [enchant.repl :as mrepl]
             [leiningen.repl :as lrepl]))
 
 (defn magic

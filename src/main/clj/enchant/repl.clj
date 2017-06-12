@@ -1,4 +1,4 @@
-(ns magic.repl
+(ns enchant.repl
   (:refer-clojure :exclude [Compiler])
   (:use [clojure.repl])
   (:import [magic RT]

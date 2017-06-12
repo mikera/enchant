@@ -1,6 +1,6 @@
-(defproject magic-clojure "0.0.1-SNAPSHOT"
+(defproject enchant "0.0.1-SNAPSHOT"
   :description "Magic Integration for Clojure"
-  :url "https://github.com/mikera/magic-clojure"
+  :url "https://github.com/mikera/enchant"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   
@@ -9,7 +9,7 @@
   
   :resource-paths ["resources"]
   
-  :main magic.main
+  :main enchant.main
   
   :eval-in-leiningen true
   
@@ -18,7 +18,7 @@
                  [com.rpl/specter "1.0.1"]
                  [net.mikera/magic "0.0.1-SNAPSHOT"] ]
   :profiles  {:dev  {:dependencies  [[org.clojure/test.check "0.9.0"]]
-                     :repl-options {:nrepl-middleware [magic.repl/magic-handler]}}
+                     :repl-options {:nrepl-middleware [enchant.repl/magic-handler]}}
               :test {:dependencies  []}
               }
   )
