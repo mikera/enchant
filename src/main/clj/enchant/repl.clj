@@ -25,8 +25,6 @@
 (defn magic-eval
   "nREPL handler function for evaluationg Magic code"
   [{:keys [op code session transport] :as msg}]
-  ;; (println "Code = " code)
-  ;;(println "Session = " code)
   (try
     (let [^magic.lang.Context context (or (@session #'context) (throw (Error. "No context??")))    
         
@@ -36,28 +34,29 @@
          _ (swap! session assoc #'context new-context)
         
          resp (nrepl-misc/response-for msg 
-                                      :status #{:done :success} 
-                                      :printed-value 1
-                                      ;;:value val
+                                       :status :success 
                                        :out (magic-str val)
+                                       :ns "magic"
                                        )]
        ;;(println "Resp = " resp)
-       (transport/send transport resp))
+       (transport/send transport resp)
+       (transport/send transport (nrepl-misc/response-for msg :status :done))
+       )
     (catch Throwable t
       (let [resp (nrepl-misc/response-for msg 
                                       :status :error
-                                      :printed-value 1
-                                      ;;:value t
                                        :err (magic-str t)
+                                       :ns "magic"
                                        )]
-        (transport/send transport resp)))))
+        (transport/send transport resp)
+        (transport/send transport (nrepl-misc/response-for msg :status :done))))))
 
 
 (defn magic-handler
   "nREPL middleware function for Magic operations. Delegates to default handlers as required."
   [h]
   (fn [{:keys [op session code transport] :as msg}]
-    (cond
+   (cond
       (= "eval" op)
         (let [sess @session
               magic? (sess #'magic?)]
@@ -66,22 +65,22 @@
               (do 
                 (swap! session assoc #'magic? true)
                 (swap! session assoc #'context magic.RT/INITIAL_CONTEXT)
-                (transport/send transport (nrepl-misc/response-for msg 
-                                                                   :status :done
-                                                                   :printed-value 1
-                                                                   ;;:value "Welcome to Magic!\n"
-                                                                   :out "Welcome to Magic!\n"
-                                                                   )))
+                (transport/send transport (nrepl-misc/response-for msg :out "Welcome to Magic!\n"))
+                (transport/send transport (nrepl-misc/response-for msg :status :done))
+;; Leiningen/reply appears to crash unless it receives:
+;; - a :status :done message
+;; - *without* either :err or :out
+                )
             (and magic? (= code "quit"))
               (do 
                 (swap! session assoc #'magic? false)
                 (transport/send transport (nrepl-misc/response-for msg 
                                                                    :status :done
-                                                                   :printed-value 1
-                                                                   ;; :value "Welcome to Magic!\n"
                                                                    :out "Exiting Magic...\n"
                                                                    )))
-            magic? (#'magic-eval msg)
+            magic? (do 
+                       ;; (println "Magic handling code = " code)
+                       (#'magic-eval msg))
             :else (h msg))
           )
       :else
