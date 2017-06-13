@@ -56,7 +56,11 @@
   "nREPL middleware function for Magic operations. Delegates to default handlers as required."
   [h]
   (fn [{:keys [op session code transport] :as msg}]
-   (cond
+;    (when-not (contains? @session #'magic?)
+;      (swap! session assoc #'magic? magic?)
+;      (swap! session assoc #'context magic.RT/INITIAL_CONTEXT))
+;    (println msg)
+    (cond
       (= "eval" op)
         (let [sess @session
               magic? (sess #'magic?)]
@@ -71,13 +75,12 @@
 ;; - a :status :done message
 ;; - *without* either :err or :out
                 )
-            (and magic? (= code "quit"))
+            (and magic? (= code "clojure"))
               (do 
                 (swap! session assoc #'magic? false)
-                (transport/send transport (nrepl-misc/response-for msg 
-                                                                   :status :done
-                                                                   :out "Exiting Magic...\n"
-                                                                   )))
+                (transport/send transport (nrepl-misc/response-for msg :out "Exiting Magic...\n"))
+                (transport/send transport (nrepl-misc/response-for msg :status :done))
+                )
             magic? (do 
                        ;; (println "Magic handling code = " code)
                        (#'magic-eval msg))
