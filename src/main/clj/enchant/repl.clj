@@ -1,7 +1,6 @@
 (ns enchant.repl
-  (:refer-clojure :exclude [Compiler])
   (:use [clojure.repl])
-  (:import [magic RT]
+  (:import [magic RT Core]
            [magic.compiler EvalResult])
   (:require [clojure.tools.nrepl :as repl]
             [clojure.tools.nrepl.server :as server]
@@ -16,7 +15,6 @@
 (defonce ^:dynamic magic? false)
 (defonce ^:dynamic context nil)
 
-
 (defn magic-str 
   "Converts a Magic value to a string for readable printing"
   ^String [o]
@@ -28,7 +26,7 @@
   (try
     (let [^magic.lang.Context context (or (@session #'context) (throw (Error. "No context??")))    
         
-         result (magic.compiler.Compiler/compile context (str code))
+         result (magic.Core/eval context (str code))
          val (.getValue result)
          new-context (.getContext result)
          _ (swap! session assoc #'context new-context)
@@ -68,7 +66,7 @@
             (and (not magic?) (= code "magic"))
               (do 
                 (swap! session assoc #'magic? true)
-                (swap! session assoc #'context magic.RT/INITIAL_CONTEXT)
+                (swap! session assoc #'context magic.Core/INITIAL_CONTEXT)
                 (transport/send transport (nrepl-misc/response-for msg :out "Welcome to Magic!\n"))
                 (transport/send transport (nrepl-misc/response-for msg :status :done))
 ;; Leiningen/reply appears to crash unless it receives:
